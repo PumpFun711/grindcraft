@@ -29,12 +29,7 @@ io.on('connection', (socket) => {
   console.log(`[+] Player connected: ${socket.id}`);
 
   socket.on('join', (data) => {
-    const { nickname, skin, hair, shirt, pants, walletVerified } = data;
-
-    if (!walletVerified) {
-      socket.emit('error', { message: 'Wallet not verified. Hold 300,000 $GC to play.' });
-      return;
-    }
+    const { nickname, skin, hair, shirt, pants } = data;
 
     const room = roomManager.joinRoom(socket.id, {
       nickname: nickname || 'Player',
@@ -92,7 +87,8 @@ io.on('connection', (socket) => {
         minedBy: socket.id,
         points: result.points,
         playerPoints: result.playerPoints,
-        playerBlocks: result.playerBlocks
+        playerBlocks: result.playerBlocks,
+        blockType: result.blockType
       });
     } else {
       socket.emit('blockHit', {
