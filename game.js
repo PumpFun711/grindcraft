@@ -1,14 +1,22 @@
 const Game = {
-  // State
   world: [],
   players: new Map(),
   myId: null,
   myPlayer: null,
   roomName: null,
   animFrame: null,
-  lastMove: 0,
-  walkTick: 0,
   t: 0,
+
+  // Input state
+  keys: {},
+  mouseCol: -1,
+  mouseRow: -1,
+  miningInterval: null,
+  miningTarget: null,
+
+  // Movement
+  moveTimer: 0,
+  MOVE_SPEED: 0.12,
 
   init() {
     WorldRenderer.init('game-canvas');
@@ -16,65 +24,75 @@ const Game = {
     this.bindInput();
   },
 
-  // Called when server sends full world state
   onInit(data) {
     this.world = data.world;
     this.myId = data.playerId;
     this.roomName = data.roomName;
 
-    // Clear and rebuild players map
     this.players.clear();
     data.players.forEach(p => {
       this.players.set(p.id, {
         ...p,
+        walkFrame: 0,
         walkTick: 0,
-        frame: 0,
-        moving: false
+        direction: 0,
+        vx: 0,
+        vy: 0,
+        px: p.x,
+        py: p.y
       });
     });
 
     this.myPlayer = this.players.get(this.myId);
 
-    // Update HUD
     document.getElementById('hud-room').textContent = data.roomName;
     document.getElementById('hud-online').textContent = data.playerCount + '/60';
     document.getElementById('hud-name').textContent = this.myPlayer.nickname;
+    document.getElementById('hud-pts').textContent = '0';
+    document.getElementById('hud-blocks').textContent = '0';
+    document.getElementById('hud-pick').textContent = PICKS[0].name;
+    document.getElementById('hud-pick').style.color = PICKS[0].color;
 
-    // Build sidebar
     UI.buildBlockLegend();
     UI.buildShop(this.myPlayer);
     Network.getLeaderboard();
 
-    // Start game loop
-    if (this.animFrame) cancelAnimationFrame(this.animFrame);
+    if(this.animFrame) cancelAnimationFrame(this.animFrame);
     this.loop();
 
-    showToast('⛏ Joined ' + data.roomName + ' — start mining!');
+    showToast('⛏ Joined ' + data.roomName + ' — use WASD to move, click to mine!');
   },
 
   onPlayerJoined(data) {
-    this.players.set(data.id, { ...data, walkTick: 0, frame: 0, moving: false });
-    const count = this.players.size;
-    document.getElementById('hud-online').textContent = count + '/60';
-    showToast('👤 ' + data.nickname + ' joined the server');
+    this.players.set(data.id, {
+      ...data,
+      walkFrame: 0,
+      walkTick: 0,
+      direction: 0,
+      px: data.x,
+      py: data.y
+    });
+    document.getElementById('hud-online').textContent = this.players.size + '/60';
+    showToast('👤 ' + data.nickname + ' joined');
   },
 
   onPlayerMoved(data) {
     const p = this.players.get(data.id);
-    if (p) {
+    if(p && data.id !== this.myId) {
       p.x = data.x;
       p.y = data.y;
-      p.frame = data.frame;
-      p.moving = true;
+      p.px = data.px || data.x;
+      p.py = data.py || data.y;
+      p.direction = data.direction || 0;
+      p.walkFrame = data.walkFrame || 0;
     }
   },
 
   onPlayerLeft(data) {
     const p = this.players.get(data.id);
-    if (p) showToast('👤 ' + p.nickname + ' left the server');
+    if(p) showToast('👤 ' + p.nickname + ' left');
     this.players.delete(data.id);
-    const count = this.players.size;
-    document.getElementById('hud-online').textContent = count + '/60';
+    document.getElementById('hud-online').textContent = this.players.size + '/60';
   },
 
   onBlockBroken(data) {
@@ -82,19 +100,22 @@ const Game = {
     this.world[idx] = -1;
     WorldRenderer.clearCrack(data.col, data.row);
 
-    // If it was our block
-    if (data.minedBy === this.myId) {
+    if(data.minedBy === this.myId) {
       this.myPlayer.points = data.playerPoints;
       this.myPlayer.totalBlocks = data.playerBlocks;
       document.getElementById('hud-pts').textContent = data.playerPoints.toLocaleString();
       document.getElementById('hud-blocks').textContent = data.playerBlocks;
       UI.buildShop(this.myPlayer);
-      spawnFloatText(
-        this.myPlayer.x * TILE_SIZE + TILE_SIZE/2,
-        this.myPlayer.y * TILE_SIZE - 10,
-        '+' + data.points + ' pts',
-        BLOCKS[data.blockType] ? BLOCKS[data.blockType].color : '#fff'
-      );
+
+      // Float text at block position
+      const { x, y } = WorldRenderer.worldToScreen(data.col, data.row);
+      spawnFloatText(x + TILE_SIZE/2, y, '+' + data.points + ' pts',
+        BLOCKS[data.blockType] ? BLOCKS[data.blockType].color : '#fff');
+    }
+
+    // Stop mining if this was our target
+    if(this.miningTarget && this.miningTarget.col === data.col && this.miningTarget.row === data.row) {
+      this.stopMining();
     }
   },
 
@@ -115,72 +136,240 @@ const Game = {
 
   onPlayerPickaxeChanged(data) {
     const p = this.players.get(data.id);
-    if (p) p.pickaxe = data.tier;
+    if(p) p.pickaxe = data.tier;
   },
 
   bindInput() {
-    const canvas = document.getElementById('game-canvas');
-    canvas.addEventListener('click', (e) => {
-      if (!this.myPlayer) return;
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      const block = WorldRenderer.getBlockAt(mx, my);
-      if (!block) return;
-
-      const idx = block.row * WORLD_COLS + block.col;
-      if (this.world[idx] < 0) return; // air
-
-      // Move player toward the block
-      this.myPlayer.x = block.col;
-      this.myPlayer.y = block.row;
-      this.walkTick++;
-      this.myPlayer.frame = this.walkTick % 2;
-      Network.move(this.myPlayer.x, this.myPlayer.y, this.myPlayer.frame);
-
-      // Mine it
-      Network.mineBlock(block.col, block.row);
+    // WASD keyboard
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.key.toLowerCase()] = true;
+      // Space to jump (visual only bob)
+      if(e.key === ' ') e.preventDefault();
     });
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.key.toLowerCase()] = false;
+    });
+
+    const canvas = document.getElementById('game-canvas');
+
+    // Mouse move — highlight block
+    canvas.addEventListener('mousemove', (e) => {
+      if(!this.myPlayer) return;
+      const rect = canvas.getBoundingClientRect();
+      const block = WorldRenderer.getBlockAt(e.clientX - rect.left, e.clientY - rect.top);
+      if(block) {
+        this.mouseCol = block.col;
+        this.mouseRow = block.row;
+      }
+    });
+
+    // Click to start mining
+    canvas.addEventListener('mousedown', (e) => {
+      if(!this.myPlayer || e.button !== 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const block = WorldRenderer.getBlockAt(e.clientX - rect.left, e.clientY - rect.top);
+      if(!block) return;
+      const idx = block.row * WORLD_COLS + block.col;
+      if(this.world[idx] < 0) return;
+
+      // Check range — must be within 4 tiles
+      const dist = Math.abs(block.col - this.myPlayer.x) + Math.abs(block.row - this.myPlayer.y);
+      if(dist > 4) {
+        showToast('⚠️ Too far away! Move closer to mine.');
+        return;
+      }
+
+      this.startMining(block.col, block.row);
+    });
+
+    canvas.addEventListener('mouseup', () => this.stopMining());
+    canvas.addEventListener('mouseleave', () => this.stopMining());
+  },
+
+  startMining(col, row) {
+    this.stopMining();
+    this.miningTarget = { col, row };
+
+    // Face toward block
+    if(this.myPlayer) {
+      const dx = col - this.myPlayer.x;
+      const dy = row - this.myPlayer.y;
+      if(Math.abs(dx) > Math.abs(dy)) {
+        this.myPlayer.direction = dx > 0 ? 2 : 1;
+      } else {
+        this.myPlayer.direction = dy > 0 ? 0 : 3;
+      }
+    }
+
+    // Mine immediately then every 250ms
+    Network.mineBlock(col, row);
+    this.miningInterval = setInterval(() => {
+      if(!this.miningTarget) return;
+      const idx = this.miningTarget.row * WORLD_COLS + this.miningTarget.col;
+      if(this.world[idx] < 0) { this.stopMining(); return; }
+      Network.mineBlock(this.miningTarget.col, this.miningTarget.row);
+    }, 250);
+  },
+
+  stopMining() {
+    if(this.miningInterval) {
+      clearInterval(this.miningInterval);
+      this.miningInterval = null;
+    }
+    this.miningTarget = null;
+  },
+
+  updateMovement(dt) {
+    if(!this.myPlayer) return;
+
+    const p = this.myPlayer;
+    let dx = 0, dy = 0;
+
+    if(this.keys['w'] || this.keys['arrowup'])    dy = -1;
+    if(this.keys['s'] || this.keys['arrowdown'])  dy =  1;
+    if(this.keys['a'] || this.keys['arrowleft'])  dx = -1;
+    if(this.keys['d'] || this.keys['arrowright']) dx =  1;
+
+    const moving = dx !== 0 || dy !== 0;
+
+    if(moving) {
+      // Set direction
+      if(Math.abs(dx) > Math.abs(dy)) {
+        p.direction = dx > 0 ? 2 : 1;
+      } else {
+        p.direction = dy > 0 ? 0 : 3;
+      }
+
+      // Normalize diagonal
+      if(dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+
+      const speed = this.MOVE_SPEED * dt;
+      const newX = p.x + dx * speed;
+      const newY = p.y + dy * speed;
+
+      // Collision check
+      const tileX = Math.round(newX);
+      const tileY = Math.round(newY);
+
+      const canMoveX = this.isTileWalkable(Math.round(newX), Math.round(p.y));
+      const canMoveY = this.isTileWalkable(Math.round(p.x), Math.round(newY));
+
+      if(canMoveX) p.x = Math.max(0, Math.min(WORLD_COLS-1, newX));
+      if(canMoveY) p.y = Math.max(0, Math.min(WORLD_ROWS-1, newY));
+
+      // Walk animation
+      p.walkTick = (p.walkTick || 0) + dt * 0.008;
+      p.walkFrame = Math.floor(p.walkTick) % 4;
+
+      // Send position to server every 50ms
+      this.moveTimer += dt;
+      if(this.moveTimer > 50) {
+        this.moveTimer = 0;
+        Network.move(p.x, p.y, p.direction, p.walkFrame);
+      }
+
+      // Stop mining if moving
+      if(this.miningTarget) this.stopMining();
+
+    } else {
+      p.walkFrame = 0;
+    }
+  },
+
+  isTileWalkable(col, row) {
+    if(col < 0 || col >= WORLD_COLS || row < 0 || row >= WORLD_ROWS) return false;
+    const idx = row * WORLD_COLS + col;
+    return this.world[idx] < 0; // -1 = air = walkable
   },
 
   loop() {
-    this.animFrame = requestAnimationFrame(() => this.loop());
-    this.t += 0.02;
+    this.animFrame = requestAnimationFrame((ts) => this.loop(ts));
+    this.t += 1;
+
+    const dt = 16; // ~60fps target
+    this.updateMovement(dt);
+
+    if(this.myPlayer) {
+      WorldRenderer.updateCamera(this.myPlayer.x, this.myPlayer.y);
+    }
 
     const ctx = WorldRenderer.ctx;
     const canvas = WorldRenderer.canvas;
-
-    // Clear
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw world
-    WorldRenderer.drawWorld(this.world);
+    // Draw world with mouse highlight
+    WorldRenderer.drawWorld(this.world, this.mouseCol, this.mouseRow);
 
-    // Draw all players
-    this.players.forEach((p, id) => {
-      const px = p.x * TILE_SIZE;
-      const py = p.y * TILE_SIZE - 20;
-      const S = 2;
-      const bob = Math.sin(this.t * 3 + (p.x + p.y)) * 1.2;
+    // Draw all players sorted by Y (depth)
+    const sortedPlayers = Array.from(this.players.values()).sort((a,b) => a.y - b.y);
 
-      drawPixelChar(ctx, px - 8, py + bob, {
-        skin: p.skin,
-        hair: p.hair,
-        shirt: p.shirt,
-        pants: p.pants
-      }, p.frame || 0, S);
+    sortedPlayers.forEach(p => {
+      const { x, y } = WorldRenderer.worldToScreen(p.x, p.y);
+      const S = 3;
+      const charH = 20 * S;
 
-      drawNameTag(ctx, px - 8, py + bob, p.nickname, id === this.myId, S);
+      // Mining animation shake
+      let shakeX = 0, shakeY = 0;
+      if(p.id === this.myId && this.miningTarget) {
+        shakeX = Math.sin(this.t * 0.8) * 2;
+        shakeY = Math.cos(this.t * 0.8) * 1;
+      }
+
+      drawPixelChar(
+        ctx,
+        x - 4*S + shakeX,
+        y - charH + shakeY,
+        { skin: p.skin, hair: p.hair, shirt: p.shirt, pants: p.pants },
+        p.walkFrame || 0,
+        S,
+        p.direction || 0
+      );
+
+      drawNameTag(ctx, x - 4*S, y - charH, p.nickname, p.id === this.myId, S);
+
+      // Pickaxe tier badge
+      if(p.pickaxe > 0) {
+        const pick = PICKS[p.pickaxe];
+        ctx.font = 'bold 10px monospace';
+        ctx.fillStyle = pick.color;
+        ctx.textAlign = 'center';
+        ctx.fillText('⛏' + pick.name, x, y - charH - 20);
+        ctx.textAlign = 'left';
+      }
     });
+
+    // Mining progress bar
+    if(this.miningTarget && this.myPlayer) {
+      const key = `${this.miningTarget.col},${this.miningTarget.row}`;
+      const crack = WorldRenderer.cracks[key];
+      if(crack) {
+        const progress = crack.hits / crack.hitsNeeded;
+        const barW = 120, barH = 10;
+        const bx = canvas.width/2 - barW/2;
+        const by = canvas.height - 60;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(bx-2, by-2, barW+4, barH+4);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(bx, by, barW, barH);
+        ctx.fillStyle = BLOCKS[this.world[this.miningTarget.row*WORLD_COLS+this.miningTarget.col]]?.color || '#00ff88';
+        ctx.fillRect(bx, by, barW*progress, barH);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('MINING...', canvas.width/2, by-4);
+        ctx.textAlign = 'left';
+      }
+    }
   },
 
   leave() {
-    if (this.animFrame) cancelAnimationFrame(this.animFrame);
+    if(this.animFrame) cancelAnimationFrame(this.animFrame);
+    this.stopMining();
     this.world = [];
     this.players.clear();
     this.myId = null;
     this.myPlayer = null;
-    if (Network.socket) Network.socket.disconnect();
+    if(Network.socket) Network.socket.disconnect();
     document.getElementById('game-screen').classList.remove('active');
   }
 };
