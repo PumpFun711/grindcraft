@@ -1,5 +1,4 @@
 const UI = {
-  // Character creation state
   char: {
     skin: SKIN_COLORS[0],
     hair: HAIR_COLORS[0],
@@ -8,21 +7,12 @@ const UI = {
     nickname: ''
   },
 
-  walletVerified: false,
-
   init() {
-    // Nav buttons
-    document.getElementById('btn-connect-nav').onclick = () => this.openWalletModal();
-    document.getElementById('btn-play-now').onclick = () => this.openWalletModal();
-    document.getElementById('btn-gate-connect').onclick = () => this.openWalletModal();
+    // Nav buttons — go straight to character creation
+    document.getElementById('btn-connect-nav').onclick = () => this.openCharModal();
+    document.getElementById('btn-play-now').onclick = () => this.openCharModal();
+    document.getElementById('btn-gate-connect').onclick = () => this.openCharModal();
     document.getElementById('btn-spectate').onclick = () => showToast('👁 Spectate mode coming soon!');
-
-    // Wallet modal
-    document.getElementById('modal-wallet-close').onclick = () => this.closeWalletModal();
-    document.getElementById('btn-verify-wallet').onclick = () => this.verifyWallet();
-    document.getElementById('modal-wallet').onclick = (e) => {
-      if (e.target === document.getElementById('modal-wallet')) this.closeWalletModal();
-    };
 
     // Character modal
     document.getElementById('modal-char-close').onclick = () => this.closeCharModal();
@@ -72,54 +62,6 @@ const UI = {
     Game.init();
   },
 
-  // ── WALLET ──
-  openWalletModal() {
-    document.getElementById('modal-wallet').classList.add('open');
-    document.getElementById('wallet-error').style.display = 'none';
-    document.getElementById('wallet-loading').style.display = 'none';
-  },
-
-  closeWalletModal() {
-    document.getElementById('modal-wallet').classList.remove('open');
-  },
-
-  verifyWallet() {
-    const input = document.getElementById('wallet-address-input').value.trim();
-    const errEl = document.getElementById('wallet-error');
-    const loadEl = document.getElementById('wallet-loading');
-    errEl.style.display = 'none';
-
-    if (!input) {
-      errEl.style.display = 'block';
-      errEl.textContent = '❌ Please enter your wallet address.';
-      return;
-    }
-
-    // Show loading state
-    loadEl.style.display = 'block';
-    document.getElementById('btn-verify-wallet').disabled = true;
-
-    // Simulate on-chain check (replace with real Solana RPC call)
-    setTimeout(() => {
-      loadEl.style.display = 'none';
-      document.getElementById('btn-verify-wallet').disabled = false;
-
-      // For now accept any valid-looking address (44 chars) or number >= 300000
-      const num = parseFloat(input.replace(/[^0-9.]/g, ''));
-      const isAddress = input.length >= 32;
-      const hasEnough = !isNaN(num) && num >= 300000;
-
-      if (isAddress || hasEnough) {
-        this.walletVerified = true;
-        this.closeWalletModal();
-        this.openCharModal();
-      } else {
-        errEl.style.display = 'block';
-        errEl.textContent = '❌ Insufficient $GC balance. Buy more tokens to play.';
-      }
-    }, 1800);
-  },
-
   // ── CHARACTER ──
   openCharModal() {
     document.getElementById('modal-char').classList.add('open');
@@ -143,18 +85,16 @@ const UI = {
     this.char.nickname = nickname;
     this.closeCharModal();
 
-    // Show game screen
     document.getElementById('game-screen').classList.add('active');
     document.getElementById('hud-name').textContent = nickname;
 
-    // Join server
     Network.join({
       nickname,
       skin: this.char.skin,
       hair: this.char.hair,
       shirt: this.char.shirt,
       pants: this.char.pants,
-      walletVerified: this.walletVerified
+      walletVerified: true
     });
   },
 
@@ -219,10 +159,10 @@ const UI = {
 
   buildBlockGrid() {
     const RARE_COLORS = {
-      0:'#888', 1:'#888', 2:'#888', 3:'#888',
-      4:'#4fc3f7', 5:'#4fc3f7', 6:'#4fc3f7',
-      7:'#ffd700', 8:'#ffd700', 9:'#ffd700',
-      10:'#aa44ff', 11:'#aa44ff',
+      0:'#888',1:'#888',2:'#888',3:'#888',
+      4:'#4fc3f7',5:'#4fc3f7',6:'#4fc3f7',
+      7:'#ffd700',8:'#ffd700',9:'#ffd700',
+      10:'#aa44ff',11:'#aa44ff',
       12:'#00ff88'
     };
     const RARE_NAMES = {
@@ -255,7 +195,6 @@ const UI = {
   }
 };
 
-// Boot everything when DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   UI.init();
 });
