@@ -14,7 +14,7 @@ const Network = {
 
     this.socket.on('disconnect', () => {
       this.connected = false;
-      showToast('❌ Disconnected from server. Reconnecting...');
+      showToast('❌ Disconnected. Reconnecting...');
     });
 
     this.socket.on('error', (data) => {
@@ -59,27 +59,27 @@ const Network = {
   },
 
   join(playerData) {
-    if (!this.socket) return;
+    if(!this.socket) return;
     this.socket.emit('join', playerData);
   },
 
-  move(x, y, frame) {
-    if (!this.socket) return;
-    this.socket.emit('move', { x, y, frame });
+  move(x, y, direction, walkFrame) {
+    if(!this.socket) return;
+    this.socket.emit('move', { x, y, direction, walkFrame });
   },
 
   mineBlock(col, row) {
-    if (!this.socket) return;
+    if(!this.socket) return;
     this.socket.emit('mineBlock', { col, row });
   },
 
   buyPickaxe(tier) {
-    if (!this.socket) return;
+    if(!this.socket) return;
     this.socket.emit('buyPickaxe', { tier });
   },
 
   getLeaderboard() {
-    if (!this.socket) return;
+    if(!this.socket) return;
     this.socket.emit('getLeaderboard');
   }
 };
