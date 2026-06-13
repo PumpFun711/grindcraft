@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GrindCraft $GC — Mine. Earn. Grind.</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <nav id="nav">
+    <a class="nav-logo" href="#">
+      <span class="nav-logo-icon">⛏</span>
+      <span class="nav-logo-text">GRIND<span>CRAFT</span></span>
+      <span class="nav-badge">BETA</span>
+    </a>
+    <div class="nav-links">
+      <a href="#how">How to Play</a>
+      <a href="#picks">Pickaxes</a>
+      <a href="#gate-section">Token Gate</a>
+      <a href="#">Docs</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-icon" href="#" title="Discord">💬</a>
+      <a class="nav-icon" href="#" title="Telegram">✈️</a>
+      <button class="btn-wallet" id="btn-connect-nav">Connect Wallet</button>
+    </div>
+  </nav>
+
+  <section id="hero">
+    <canvas id="iso-canvas"></canvas>
+    <div class="hero-overlay">
+      <div class="hero-eyebrow">Powered by $GC on Solana</div>
+      <div class="hero-title">GRIND<span class="hero-title-gc">CRAFT</span></div>
+      <div class="hero-sub">A blockchain mining game where you hold $GC tokens, mine blocks, earn points, and upgrade your pickaxe to the legendary $GC tier.</div>
+      <div class="hero-btns">
+        <button class="btn-play" id="btn-play-now">▶ PLAY NOW</button>
+        <button class="btn-spectate" id="btn-spectate">SPECTATE</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-pill"><div class="stat-dot"></div><span id="live-players">-- players online</span></div>
+        <div class="stat-pill"><div class="stat-dot gold"></div><span>12,400 players monthly</span></div>
+        <div class="ca-pill" id="ca-copy">CA: 7xGC...pump &nbsp;📋</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="section-label">How it works</div>
+    <div class="section-title">MINE. EARN. GRIND.</div>
+    <div class="section-sub">Hold $GC tokens to unlock a server, pick your name, build your character, and start mining your way up the leaderboard.</div>
+    <div class="steps">
+      <div class="step"><div class="step-num">01</div><span class="step-icon">💎</span><div class="step-title">Hold 300K $GC</div><div class="step-desc">Buy and hold at least 300,000 $GC tokens on Solana. Connect your wallet to verify your balance and unlock server access.</div></div>
+      <div class="step"><div class="step-num">02</div><span class="step-icon">🎮</span><div class="step-title">Create Your Character</div><div class="step-desc">Choose your nickname, customize your skin, hair, shirt and pants. Your character is unique to you across all GrindCraft servers.</div></div>
+      <div class="step"><div class="step-num">03</div><span class="step-icon">⛏</span><div class="step-title">Mine & Earn Points</div><div class="step-desc">Click blocks to mine them. Rarer blocks deep underground give massive points. Different blocks need different pickaxe tiers to reach.</div></div>
+      <div class="step"><div class="step-num">04</div><span class="step-icon">🏆</span><div class="step-title">Upgrade & Dominate</div><div class="step-desc">Spend your earned points on better pickaxes — all the way up to the legendary $GC Pickaxe. Climb the leaderboard in 60-player servers.</div></div>
+    </div>
+  </section>
+
+  <section id="picks">
+    <div class="section-label">Gear progression</div>
+    <div class="section-title">PICKAXE TIERS</div>
+    <div class="section-sub">Start with a wooden pickaxe and grind your way to the legendary $GC tier.</div>
+    <div class="picks-grid" id="picks-grid"></div>
+  </section>
+
+  <section id="blocks">
+    <div class="section-label">What you'll mine</div>
+    <div class="section-title">BLOCK TYPES</div>
+    <div class="section-sub">13 unique blocks. $GC Ore is the holy grail — 250 points, found only deep underground.</div>
+    <div class="blocks-grid" id="blocks-grid"></div>
+  </section>
+
+  <section id="gate-section">
+    <div class="section-label">Token requirement</div>
+    <div class="section-title">HOLD TO PLAY</div>
+    <div class="section-sub">GrindCraft is exclusive to $GC holders.</div>
+    <div class="gate-card">
+      <div class="gate-icon">🔐</div>
+      <div class="gate-title">TOKEN GATE</div>
+      <div class="gate-desc">Connect your Solana wallet. We check your $GC balance on-chain before granting server access.</div>
+      <div class="gate-amount"><div class="gate-amount-num">300,000</div><div class="gate-amount-label">$GC minimum to enter any server</div></div>
+      <button class="btn-gate" id="btn-gate-connect">⛏ CONNECT & VERIFY</button>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">GRIND<span>CRAFT</span> <span style="color:rgba(255,255,255,0.2);font-size:12px">$GC</span></div>
+    <div class="footer-links">
+      <a href="#">Twitter / X</a><a href="#">Telegram</a><a href="#">Discord</a><a href="#">Docs</a><a href="#">pumpfun</a>
+    </div>
+    <div class="footer-copy">GrindCraft — built by grinders, for grinders.</div>
+  </footer>
+
+  <div id="modal-wallet" class="modal-overlay">
+    <div class="modal">
+      <button class="modal-close" id="modal-wallet-close">×</button>
+      <h2>⛏ CONNECT WALLET</h2>
+      <p>Verify your $GC balance to access a GrindCraft server. Minimum 300,000 $GC required.</p>
+      <div class="modal-req">
+        <span class="modal-req-label">Minimum balance required</span>
+        <span class="modal-req-val">300,000 $GC</span>
+      </div>
+      <div class="modal-field">
+        <label>Wallet address</label>
+        <input id="wallet-address-input" type="text" placeholder="Enter your Solana wallet address..."/>
+      </div>
+      <button class="btn-modal" id="btn-verify-wallet">VERIFY & CONTINUE</button>
+      <div class="modal-err" id="wallet-error">❌ Insufficient $GC balance. Buy more tokens to play.</div>
+      <div class="modal-loading" id="wallet-loading">Checking balance on-chain...</div>
+    </div>
+  </div>
+
+  <div id="modal-char" class="modal-overlay">
+    <div class="modal modal-wide">
+      <button class="modal-close" id="modal-char-close">×</button>
+      <h2>⛏ CREATE CHARACTER</h2>
+      <p>Choose your look before entering the world.</p>
+      <div class="char-layout">
+        <div class="char-preview">
+          <canvas id="char-preview-canvas" width="88" height="132"></canvas>
+          <div class="char-preview-name" id="char-preview-name">Player</div>
+        </div>
+        <div class="char-form">
+          <div class="form-group">
+            <label>Nickname</label>
+            <input type="text" id="char-nickname" maxlength="16" placeholder="EnterYourName"/>
+          </div>
+          <div class="form-group">
+            <label>Skin</label>
+            <div class="color-row" id="skin-colors"></div>
+          </div>
+          <div class="form-group">
+            <label>Hair</label>
+            <div class="color-row" id="hair-colors"></div>
+          </div>
+          <div class="form-group">
+            <label>Shirt</label>
+            <div class="color-row" id="shirt-colors"></div>
+          </div>
+          <div class="form-group">
+            <label>Pants</label>
+            <div class="color-row" id="pants-colors"></div>
+          </div>
+          <button class="btn-modal" id="btn-enter-world">ENTER WORLD ▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-screen">
+    <div id="game-hud">
+      <div class="hud-logo">⛏ GRIND<span>CRAFT</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Player: <span id="hud-name">-</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Points: <span id="hud-pts">0</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Blocks: <span id="hud-blocks">0</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Pickaxe: <span id="hud-pick">Wood</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Server: <span id="hud-room">-</span></div>
+      <div class="hud-sep">|</div>
+      <div class="hud-stat">Online: <span id="hud-online">-</span></div>
+      <button class="hud-leave" id="btn-leave">✕ Leave</button>
+    </div>
+    <div id="game-area">
+      <canvas id="game-canvas"></canvas>
+      <div id="game-sidebar">
+        <div class="side-section">
+          <div class="side-title">Block Values</div>
+          <div id="block-legend"></div>
+        </div>
+        <div class="side-section">
+          <div class="side-title">Pickaxe Shop</div>
+          <div id="shop-list"></div>
+        </div>
+        <div class="side-section">
+          <div class="side-title">Leaderboard</div>
+          <div id="leaderboard-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="gamedata.js"></script>
+  <script src="character.js"></script>
+  <script src="world.js"></script>
+  <script src="network.js"></script>
+  <script src="game.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
